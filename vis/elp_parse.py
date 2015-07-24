@@ -306,6 +306,179 @@ def load_celex(celex_path=celex_path):
    
     return ds
 
+
+def surf_and_lem_freq(surface_form,celex,pseudo_base):
+    """
+    
+    Returns surface frequency, lemma frequency of base and transition probability.
+    
+    Can only be used for properly morphologically derived items.
+    
+    Parameters:
+    ----------
+    
+    surface_form        :       (str), the string you want to search for
+    celex               :       the celex data object 
+    pseudo_base         :       can add a user-defined lemma if you're looking at pseudo-suffixed items like "brother"
+    
+    """
+    
+    clx=celex
+    
+    clx.wfs = combine((clx.wf1,clx.wf2)) # this still screws things up because it becomes too long... need to split them.
+    
+    # get the word form info for the surface word
+    idx = surface_form == clx.wfs['word']
+    word_wf = clx.wfs.sub(idx)
+    
+    # if item not in the corpus, raise error
+    if word_wf.n_cases == 0:
+        print ("Search item %s not found" %surface_form)
+        #return 0, 0, 0
+    
+    
+    # find the lemmas that the word forms correspond to
+    unique_indexes = set(word_wf['lem_idx'])
+    lem_indexes = map(int, unique_indexes)
+    
+    
+    # otherwise, get the surface frequency of all instances summed    
+    checked = []
+    freqs = []
+    for i in xrange(len(word_wf['surf_freq'])):
+        freq = word_wf['surf_freq'][i]
+        idx = word_wf['lem_idx'][i]
+        
+        if idx not in checked and int(idx) in lem_indexes:
+            freqs.append(freq)
+            checked.append(idx)
+        
+    word_form_freq = sum(map(int, freqs))
+  
+   
+    lem_surfs = []
+    
+    # get the frequency of each lemma and sum, if we're dealing with a real morphologically composed item
+    if pseudo_base == None:
+        for index in lem_indexes:
+            idx3 = clx.lem['index'] == index
+            lemma = clx.lem.sub(idx3)
+
+            lem_surfs.append(map(int, lemma['surf_freq'])[0])
+        
+        if '+' in lemma['morph_str'][0]:
+            morphs = lemma['morph_str'][0].split('+')
+            
+            idx_add = clx.lem['word'] == morphs[0]
+            lemma_add = clx.lem.sub(idx_add)
+            
+            lem_surfs.append(map(int, lemma_add['surf_freq'])[0])
+            
+            print lemma_add
+       
+        print lemma
+                    
+        lemma_freq = sum(lem_surfs)
+        lemma_searched = lemma['word'][0]
+
+        if lemma_freq != 0:
+            tp = word_form_freq / lemma_freq
+
+        else:
+            tp = 0
+
+    
+    
+    # get the frequency of each lemma and sum, if we're dealing with a real morphologically composed item   
+    if pseudo_base != None:
+        
+        lem_words = []
+        booln = []
+                
+        for i in xrange(len(clx.lem['word'])):
+            clx_word = clx.lem['word'][i]
+            clx_morph = clx.lem['morph_str'][i]
+            
+            if pseudo_base in clx_word[0:len(pseudo_base)] or '+' + pseudo_base in clx_morph:
+                booln.append(True)
+            else:
+                booln.append(False)
+                
+        # idx4 = [pseudo_base in clx_word[0:len(pseudo_base)] for clx_word in clx.lem['word']] or ['+' + pseudo_base in clx_word for clx_word in lemma_pseudo['morph_str']]
+        idx4 = np.array(booln, dtype=bool) 
+        lemma_pseudo = clx.lem.sub(idx4)
+                            
+        for i in xrange(len(lemma_pseudo['surf_freq'])):
+            lem_surf = int(lemma_pseudo['surf_freq'][i])
+            lem_morph = lemma_pseudo['morph_str'][i]
+            lem_word = lemma_pseudo['word'][i]
+            
+            
+            if pseudo_base in lem_morph:
+                ant_leftovers = lem_morph.split(pseudo_base,1)[0]
+                post_leftovers = lem_morph.split(pseudo_base,1)[1]
+            else:
+                ant_leftovers = ''
+                post_leftovers = ''
+                
+            
+            if ant_leftovers == '':
+                ant_leftovers = 'X'
+            
+            if post_leftovers == '':
+                post_leftovers = 'X'
+                    
+            if '-' not in lem_word and ' ' not in lem_word:
+                if len(lem_word) > 0:
+                    if len(lem_morph) <= len(pseudo_base) or ant_leftovers[-1] == '+' or ant_leftovers == 'X':
+                                                
+                        if post_leftovers[0] == '+' or post_leftovers == 'X':
+                    
+                            print lem_word, lem_morph
+                
+                            lem_surfs.append(lem_surf)
+                            lem_words.append(lem_word)
+        
+        #print "the following items found for the family:", lem_words
+        
+        lemma_freq = sum(lem_surfs)
+        lemma_searched = pseudo_base
+    
+        # for the pseudo-suffixed items, this is how to calculate transition probability per lewis et al., 2011
+        if lemma_freq != 0:
+            tp = word_form_freq / (word_form_freq + lemma_freq)
+        
+        else:
+            tp = 0    
+    
+    print "searched for:",surface_form, lemma_searched
+    return word_form_freq, lemma_freq
+    
+def affix_freq(search_token,clx,verbose=True):
+    """
+    
+    Finds the frequency that an affix is used. In search token, need to include the '+' sign at the point where it will be attached
+    to get a morphological count. Leave this out if you just want the orthographic count.
+    
+    example: affix_freq('+able',celex)
+    
+    """
+    
+    # find matches to search token
+    idx = np.array([search_token in morph for morph in clx.lem['morph_str']],dtype='bool')
+    lemmas = clx.lem.sub(idx)
+    
+    # remove items that are not one orthographic unit
+    idx = np.array([" " not in word for word in lemmas['word']],dtype='bool')
+    lemmas = lemmas.sub(idx)
+    
+    if verbose == True:
+        print lemmas
+    
+    affix_freq = sum(map(int,lemmas['surf_freq']))
+    
+    return affix_freq
+
 def get_morph_freqs(search_token,ds=None,celex_path=None,whole_or_part=None,loc=None,verbose=False,save_stems=False):
     """  
 
@@ -358,7 +531,7 @@ def get_morph_freqs(search_token,ds=None,celex_path=None,whole_or_part=None,loc=
         
             if loc == None:
                                 
-                if search_token in item:
+                if search_token in item and ' ' not in item and '-' not in item: # make sure we don't count words with spaces or hyphens like "charity school" or "cabinet-maker"
                     token_count += 1
                     surf_count += surf_freq
                     if verbose == True:

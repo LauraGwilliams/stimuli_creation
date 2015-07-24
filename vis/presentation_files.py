@@ -11,7 +11,7 @@ sce = '''
 
 # re_un_out Scenario File #
 
-scenario = "re_un_out";
+scenario = "VW";
 no_logfile = false;
 default_font_size = 32;
 response_matching = simple_matching;
@@ -924,19 +924,19 @@ def presentation_code(rand,cor_but,diff_column,file_path,n=None):
     
     buttons = []
     
-    for status in rand[cor_but]:
-        if status == 'bad':
-            buttons.append(1)
-        elif status == 'good':
-            buttons.append(2)
+    # for status in rand[cor_but]:
+    #     if status == 'bad':
+    #         buttons.append(1)
+    #     elif status == 'good':
+    #         buttons.append(2)
     
     ds_temp = Dataset()
-    word = rand[diff_column]
+    items = rand[diff_column]
     Port_Code = rand['trigger']
     s = ";"
-    ds_temp['word'] = Factor(word)
+    ds_temp['item'] = Factor(items)
     ds_temp['Port_Code'] = Var(Port_Code)
-    ds_temp['correct_button'] = Var(buttons)
+    # ds_temp['correct_button'] = Var(buttons)
     ds_temp['order'] = rand['order']
     ds_temp['s'] = Factor(s*len(ds_temp['word']))
 
