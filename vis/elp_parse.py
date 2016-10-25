@@ -366,16 +366,14 @@ def surf_and_lem_freq(surface_form,celex,pseudo_base):
 
             lem_surfs.append(map(int, lemma['surf_freq'])[0])
         
-        if '+' in lemma['morph_str'][0]:
-            morphs = lemma['morph_str'][0].split('+')
+            if '+' in lemma['morph_str'][0]:
+                morphs = lemma['morph_str'][0].split('+')
             
-            idx_add = clx.lem['word'] == morphs[0]
-            lemma_add = clx.lem.sub(idx_add)
+                idx_add = clx.lem['word'] == morphs[0]
+                lemma_add = clx.lem.sub(idx_add)
             
-            lem_surfs.append(map(int, lemma_add['surf_freq'])[0])
-            
-            print lemma_add
-       
+                lem_surfs.append(map(int, lemma_add['surf_freq'])[0])
+                   
         print lemma
                     
         lemma_freq = sum(lem_surfs)
@@ -465,11 +463,11 @@ def affix_freq(search_token,clx,verbose=True):
     """
     
     # find matches to search token
-    idx = np.array([search_token in morph for morph in clx.lem['morph_str']],dtype='bool')
+    idx = np.array([search_token in morph.split('+') for morph in clx.lem['morph_str']],dtype='bool')
     lemmas = clx.lem.sub(idx)
     
     # remove items that are not one orthographic unit
-    idx = np.array([" " not in word for word in lemmas['word']],dtype='bool')
+    idx = np.array([" " and "-" not in word for word in lemmas['word']],dtype='bool')
     lemmas = lemmas.sub(idx)
     
     if verbose == True:

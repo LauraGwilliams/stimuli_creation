@@ -49,7 +49,7 @@ class LexVars(object):
     def raw_freq(self, wordform):
         '''
         Just picks out the raw freq of the wordform.
-        
+
         '''
         wordforms = self.clx.lemma_lookup(wordform)
         return sum(wordform.Cob for wordform in wordforms)
@@ -60,9 +60,9 @@ class LexVars(object):
     def log_noun_to_verb_ratio(self, lemma):
         '''
         Negative number means more verb-y, positive number means more noun-y.
-        
+
         Calculated based on the frequency the lemma is used as a noun or as a verb.
-        
+
         '''
         noun_freq = self.pos_freq(lemma, 'noun')
         verb_freq = self.pos_freq(lemma, 'verb')
@@ -71,16 +71,16 @@ class LexVars(object):
     def cond_prob_of_word_class(self, lemma, pos):
         '''
         Gives the likelihood of a given word class given the freq of the word in all other contexts.
-        
+
         '''
         class_freq = self.pos_freq(lemma, pos)
-        print "raw freq as a ", pos, ":", class_freq
-        total_freq = self.raw_freq(lemma)
-        print "\nraw freq in all contexts: ",total_freq
+        #print "raw freq as a ", pos, ":", class_freq
+        total_freq = self.raw_freq(lemma)+1
+        #print "\nraw freq in all contexts: ",total_freq
         return class_freq / total_freq
 
 
-    def derivational_family(self, target, right=False, 
+    def derivational_family(self, target, right=False,
                             include_multiword=False):
         '''
         right: If True, only count derived words that have the target word
@@ -125,25 +125,25 @@ class LexVars(object):
     def inflectional_entropy(self, lemma, kind='separate_bare', smooth=1,
                              verbose=False):
         '''
-        This function collapses across all relevant lemmas, e.g. the noun 
+        This function collapses across all relevant lemmas, e.g. the noun
         "build" and the verb "build", or the various "wind" verbs.
 
         Caution: if there are two ways to express the same inflection, the
-        function will treat them as the same cell in the inflection 
+        function will treat them as the same cell in the inflection
         distribution (e.g. "hanged" and "hung"). Probably worth adding this
         as an option in a future version.
 
-        This function supports the following three types of inflectional 
-        entropy, but there are many more ways to carve up the various 
+        This function supports the following three types of inflectional
+        entropy, but there are many more ways to carve up the various
         inflections.
 
         Paradigm 1: separate_bare
 
         bare forms are separated into nominal and verbal, but the
-        verbal bare form is not further differentiated between present 
+        verbal bare form is not further differentiated between present
         plural agreeing form and infinitive
 
-        ache (singular), aches (plural), ache (verb -- infinitive, 
+        ache (singular), aches (plural), ache (verb -- infinitive,
         present tense except third singular),
         aches (3rd singular present),
         aching (participle), ached (past tense),
@@ -169,7 +169,7 @@ class LexVars(object):
 
         clx_lemmas = self.clx.lemma_lookup(lemma)
         # Use __builtin__ here in case sum is overshadowed by numpy
-        all_wordforms = __builtin__.sum((self.clx.lemma_to_wordforms(clx_lemma) 
+        all_wordforms = __builtin__.sum((self.clx.lemma_to_wordforms(clx_lemma)
                                          for clx_lemma in clx_lemmas), [])
 
         counter = collections.Counter()
@@ -177,7 +177,7 @@ class LexVars(object):
         for wf in all_wordforms:
             infl = wf.FlectType
             freq = wf.Cob
-            if (infl[0] == 'present_tense' and infl[1] != '3rd_person_verb' 
+            if (infl[0] == 'present_tense' and infl[1] != '3rd_person_verb'
                 or infl[0] == 'infinitive'):
                 counter['bare_verb'] += freq
             if infl[0] == 'singular':
@@ -201,7 +201,7 @@ class LexVars(object):
             if infl == ['participle', 'past_tense']:
                 counter['part_ed'] += freq
 
-        common = ['noun_plural', 'third_sg', 'part_ing', 'part_ed', 
+        common = ['noun_plural', 'third_sg', 'part_ing', 'part_ed',
                   'past_tense', 'comparative', 'superlative']
         bare = ['bare_noun', 'bare_verb', 'positive', 'headword_form']
         common_freqs = [counter[i] for i in common if i in counter]
@@ -222,9 +222,9 @@ class LexVars(object):
     def entropy(self, freq_vec, smoothing_constant=1):
         '''
         This flat smoothing is an OK default but probably not the best idea:
-        might be better to back off to the average distribution for the 
-        relevant paradigm (e.g. if singular forms are generally twice as likely 
-        as plural ones, it's better to use [2, 1] as the "prior" instead of 
+        might be better to back off to the average distribution for the
+        relevant paradigm (e.g. if singular forms are generally twice as likely
+        as plural ones, it's better to use [2, 1] as the "prior" instead of
         [1, 1]).
         '''
         vec = np.asarray(freq_vec, float) + smoothing_constant
